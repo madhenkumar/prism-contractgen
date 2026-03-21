@@ -1,1 +1,5 @@
 {"url": "http://localhost:3001/hello", "method": "GET", "status": 200, "response": "{\"service\":\"A\",\"message\":\"Hello from service A\"}"}
+{"url": "http://localhost:3001/hello", "method": "GET", "status": 200, "response": "{\"service\":\"A\",\"message\":\"Hello from service A\"}"}
+{"url": "http://localhost:3001/data/123", "method": "DELETE", "status": 200, "response": "{\"service\":\"A\",\"message\":\"Data with ID 123 deleted successfully\"}"}
+{"url": "http://localhost:3001/data/123", "method": "PUT", "status": 200, "response": "{\"service\":\"A\",\"message\":\"Data with ID 123 updated successfully\",\"data\":{\"status\":\"shipped\"}}"}
+{"url": "http://localhost:3001/data", "method": "POST", "status": 201, "response": "{\"service\":\"A\",\"message\":\"Data created successfully\",\"data\":{\"item\":\"Apple\",\"quantity\":10}}"}

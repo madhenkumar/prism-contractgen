@@ -1,0 +1,140 @@
+[
+  {
+    "service": "api-service",
+    "endpoint": "GET /hello",
+    "request": {
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body_schema": {}
+    },
+    "response": {
+      "status": 200,
+      "body_schema": {
+        "type": "object",
+        "properties": {
+          "service": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  },
+  {
+    "service": "api-service",
+    "endpoint": "DELETE /data/{id}",
+    "request": {
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body_schema": {}
+    },
+    "response": {
+      "status": 200,
+      "body_schema": {
+        "$schema": "https://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "service": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  },
+  {
+    "service": "api-service",
+    "endpoint": "PUT /data/{id}",
+    "request": {
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body_schema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "response": {
+      "status": 200,
+      "body_schema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "service": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "type": "object",
+            "properties": {
+              "status": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  {
+    "service": "api-service",
+    "endpoint": "POST /data",
+    "request": {
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body_schema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "item": {
+            "$ref": "#/request/body_schema/properties/item"
+          },
+          "quantity": {
+            "$ref": "#/request/body_schema/properties/quantity"
+          }
+        },
+        "required": [
+          "item",
+          "quantity"
+        ]
+      }
+    },
+    "response": {
+      "status": 201,
+      "body_schema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "properties": {
+          "service": {
+            "$ref": "#/request/body_schema/properties/service"
+          },
+          "message": {
+            "$ref": "#/request/body_schema/properties/message"
+          },
+          "data": {
+            "$ref": "#/request/body_schema"
+          }
+        },
+        "required": [
+          "service",
+          "message",
+          "data"
+        ]
+      }
+    }
+  }
+]
