@@ -1,0 +1,6 @@
+# mitmproxy
+mitmdump
+ollama
+fastapi
+uvicorn
+python-dotenv
