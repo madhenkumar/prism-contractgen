@@ -1,0 +1,1 @@
+{"url": "http://localhost:3001/hello", "method": "GET", "status": 200, "response": "{\"service\":\"A\",\"message\":\"Hello from service A\"}"}
