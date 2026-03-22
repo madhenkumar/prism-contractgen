@@ -1,3 +1,4 @@
+package consume.api.consumer;
 import au.com.dius.pact.consumer.MockServer;
 import au.com.dius.pact.consumer.dsl.PactDslWithProvider;
 import au.com.dius.pact.consumer.junit5.PactConsumerTestExt;
@@ -26,10 +27,10 @@ public class HelloPactTest {
 
     @BeforeAll
     static void setup() {
-        baseUrl = ConfigLoader.getBaseUrl();
-        providerName = ConfigLoader.getProviderName();
-        consumerName = ConfigLoader.getConsumerName();
-        port = ConfigLoader.getPort();
+        baseUrl = "http://localhost:8081";
+        providerName = "Producer";
+        consumerName = "Consumer";
+        port = "8081";
     }
 
     @Pact(consumer = "HelloFrontend")
@@ -40,12 +41,12 @@ public class HelloPactTest {
         return builder
                 .given("API service is up and running")
                 .uponReceiving("A GET request to /hello")
-                    .path("/hello")
-                    .method("GET")
+                .path("/hello")
+                .method("GET")
                 .willRespondWith()
-                    .status(200)
-                    .headers(headers)
-                    .body("{\"service\": \"api-service\", \"message\": \"Hello from Pact\"}")
+                .status(200)
+                .headers(headers)
+                .body("{\"service\": \"api-service\", \"message\": \"Hello from Pact\"}")
                 .toPact();
     }
 
@@ -64,12 +65,12 @@ public class HelloPactTest {
         return builder
                 .given("API service is up and running")
                 .uponReceiving("A GET request to /hello with bad request")
-                    .path("/hello/bad-request")
-                    .method("GET")
+                .path("/hello/bad-request")
+                .method("GET")
                 .willRespondWith()
-                    .status(400)
-                    .headers(headers)
-                    .body("{\"error\": \"Bad Request\"}")
+                .status(400)
+                .headers(headers)
+                .body("{\"error\": \"Bad Request\"}")
                 .toPact();
     }
 
@@ -89,12 +90,12 @@ public class HelloPactTest {
         return builder
                 .given("API service is up and running")
                 .uponReceiving("A GET request to /hello/not-found")
-                    .path("/hello/not-found")
-                    .method("GET")
+                .path("/hello/not-found")
+                .method("GET")
                 .willRespondWith()
-                    .status(404)
-                    .headers(headers)
-                    .body("{\"error\": \"Not Found\"}")
+                .status(404)
+                .headers(headers)
+                .body("{\"error\": \"Not Found\"}")
                 .toPact();
     }
 
@@ -114,12 +115,12 @@ public class HelloPactTest {
         return builder
                 .given("API service is up and running")
                 .uponReceiving("A GET request to /hello/unauthorized")
-                    .path("/hello/unauthorized")
-                    .method("GET")
+                .path("/hello/unauthorized")
+                .method("GET")
                 .willRespondWith()
-                    .status(401)
-                    .headers(headers)
-                    .body("{\"error\": \"Unauthorized\"}")
+                .status(401)
+                .headers(headers)
+                .body("{\"error\": \"Unauthorized\"}")
                 .toPact();
     }
 
@@ -139,12 +140,12 @@ public class HelloPactTest {
         return builder
                 .given("API service is up and running")
                 .uponReceiving("A GET request to /hello/server-error")
-                    .path("/hello/server-error")
-                    .method("GET")
+                .path("/hello/server-error")
+                .method("GET")
                 .willRespondWith()
-                    .status(500)
-                    .headers(headers)
-                    .body("{\"error\": \"Internal Server Error\"}")
+                .status(500)
+                .headers(headers)
+                .body("{\"error\": \"Internal Server Error\"}")
                 .toPact();
     }
 

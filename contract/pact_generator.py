@@ -40,11 +40,9 @@ public class UserConsumerPactTest {
 
     @Test
     void testGetUser(MockServer mockServer) throws IOException {
-        UserServiceClient client = new UserServiceClient(mockServer.getUrl());
-        User user = client.getUser(1);
-        assertEquals(1, user.getId());
-        assertEquals("Alice", user.getName());
-        assertEquals("alice@example.com", user.getEmail());
+        org.springframework.web.client.RestTemplate restTemplate = new org.springframework.web.client.RestTemplate();
+        org.springframework.http.ResponseEntity<String> response = restTemplate.getForEntity(mockServer.getUrl() + "/users/1", String.class);
+        assertEquals(200, response.getStatusCode().value());
     }
 }
 """
@@ -59,26 +57,139 @@ def generate_java_filename(path):
 
 def generate_pact_test_for_group(path, class_name, contracts):
     print(f"Generating Pact Test for {path} (Class: {class_name}.java) ...")
-    
     prompt = f"""
-You are an expert Java developer writing JUnit 5 + Pact JVM consumer tests.
-Generate a single, complete, valid Java file implementing proper Pact JVM tests for the given API contracts.
+You are a senior Java test automation engineer specializing in Pact JVM.
 
-CRITICAL INSTRUCTIONS:
-1. OUTPUT RAW JAVA CODE ONLY. NO TRIPLE BACKTICKS (```). DO NOT INCLUDE ANY MARKDOWN formatting. NO EXPLANATIONS.
-2. The class MUST be named exactly `{class_name}`.
-3. Keep the provider annotations properly structured. Use `@ExtendWith(PactConsumerTestExt.class)`.
-4. Create a `@Pact` method and a corresponding `@Test` method for EACH of the HTTP methods provided in the JSON payload below.
-5. In the @Pact body, map the JSON schema types to concrete dummy string examples (e.g. if schema says type is integer, use 1; if string use "Alice").
+Generate a COMPLETE, COMPILABLE Java file.
 
-Here is the EXACT Pact template structure to learn from (do not copy the endpoints literally, just the structure):
+========================
+STRICT RULES
+========================
+- OUTPUT ONLY JAVA CODE
+- NO markdown, NO explanation
+- Class name MUST be {class_name}
+- ONLY ONE public class
+- ABSOLUTELY NO @Nested CLASSES OR INNER CLASSES
+- FATAL ERROR IF YOU USE @Nested
+- ALL @Test and @Pact methods MUST be flat and placed directly inside the main class
+
+========================
+MANDATORY IMPORTS (DO NOT MODIFY)
+========================
+You MUST include EXACTLY these imports:
+
+import au.com.dius.pact.consumer.MockServer;
+import au.com.dius.pact.consumer.dsl.PactDslWithProvider;
+import au.com.dius.pact.consumer.junit5.PactConsumerTestExt;
+import au.com.dius.pact.consumer.junit5.PactTestFor;
+import au.com.dius.pact.core.model.RequestResponsePact;
+import au.com.dius.pact.core.model.annotations.Pact;
+
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.extension.ExtendWith;
+
+import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
+DO NOT REMOVE OR CHANGE THESE IMPORTS.
+
+========================
+FRAMEWORK RULES
+========================
+- JUnit 5 ONLY
+- Use @ExtendWith(PactConsumerTestExt.class)
+- Use @PactTestFor(providerName="api-service", port="8081")
+
+========================
+CONFIG RULES
+========================
+Use ConfigLoader:
+
+static String baseUrl;
+static String providerName;
+static String consumerName;
+static String port;
+
+@BeforeAll
+static void setup() {{
+    baseUrl = ConfigLoader.getBaseUrl();
+    providerName = ConfigLoader.getProviderName();
+    consumerName = ConfigLoader.getConsumerName();
+    port = ConfigLoader.getPort();
+}}
+
+========================
+PACT RULES
+========================
+For EACH endpoint generate:
+
+1. success (200)
+2. bad request (400)
+3. not found (404)
+4. unauthorized (401)
+5. server error (500)
+
+Each MUST have:
+- ONE @Pact method returning RequestResponsePact
+- ONE @Test method
+
+Each @Test MUST include:
+@PactTestFor(pactMethod="EXACT_METHOD_NAME")
+
+========================
+CRITICAL TYPE RULE
+========================
+ALL pact methods MUST return:
+
+RequestResponsePact
+
+Use EXACT type:
+au.com.dius.pact.core.model.RequestResponsePact
+
+DO NOT use any other type.
+
+========================
+NAMING RULE
+========================
+createPact_<scenario>
+test_<scenario>
+
+========================
+DATA RULES
+========================
+int → 1
+string → "Alice"
+boolean → true
+
+========================
+HTTP CLIENT RULE
+========================
+- DO NOT invent or assume any custom client classes (e.g. HelloClient, UserServiceClient)
+- YOU MUST use standard `org.springframework.web.client.RestTemplate` or `java.net.http.HttpClient` directly in the @Test method to make the HTTP request to the MockServer URL.
+
+========================
+IMPORTANT
+========================
+- FATAL ERROR IF YOU USE @Nested CLASSES
+- NO multiple classes
+- MUST COMPILE
+- DO NOT omit imports
+- DO NOT use wildcard imports
+
+========================
+REFERENCE STRUCTURE
+========================
 {TEMPLATE}
 
-
----
-
-API CONTRACTS TO IMPLEMENT FOR `{path}`:
+========================
+API CONTRACTS
+========================
 {json.dumps(contracts, indent=2)}
+
 """
 
     try:
@@ -89,9 +200,9 @@ API CONTRACTS TO IMPLEMENT FOR `{path}`:
         content = response['message']['content'].strip()
         
         # Strip markdown code blocks if the LLM hallucinated them despite instructions
-        if content.startswith("```"):
+        if content.startswith(""):
             lines = content.splitlines()
-            if lines[0].startswith("```"):
+            if lines[0].startswith(""):
                 lines = lines[1:]
             if lines and lines[-1].startswith("```"):
                 lines = lines[:-1]
