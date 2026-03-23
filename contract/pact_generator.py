@@ -5,10 +5,19 @@ import re
 from collections import defaultdict
 
 OLLAMA_MODEL = "incept5/llama3.1-claude"
-TEMPLATE = """import au.com.dius.pact.consumer.dsl.PactDslWithProvider;
-import au.com.dius.pact.consumer.junit5.*;
+TEMPLATE = """
+package consume.api.consumer;
+
+import au.com.dius.pact.consumer.MockServer;
+import au.com.dius.pact.consumer.dsl.PactDslWithProvider;
+import au.com.dius.pact.consumer.junit5.PactConsumerTestExt;
+import au.com.dius.pact.consumer.junit5.PactTestFor;
 import au.com.dius.pact.core.model.RequestResponsePact;
+import au.com.dius.pact.core.model.annotations.Pact;
+import au.com.dius.pact.core.model.PactSpecVersion;
+
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.io.IOException;
@@ -16,37 +25,80 @@ import java.util.HashMap;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.fail;
 
 @ExtendWith(PactConsumerTestExt.class)
-@PactTestFor(providerName = "UserService", port = "8081")
-public class UserConsumerPactTest {
+@PactTestFor(providerName = "api-service", port = "8081", pactVersion = PactSpecVersion.V3)
+public class ExamplePactTest {
 
-    @Pact(consumer = "UserFrontend")
-    public RequestResponsePact createPact(PactDslWithProvider builder) {
+    static String baseUrl;
+    static String providerName;
+    static String consumerName;
+    static String port;
+
+    @BeforeAll
+    static void setup() {
+        baseUrl = ConfigLoader.getBaseUrl();
+        providerName = ConfigLoader.getProviderName();
+        consumerName = ConfigLoader.getConsumerName();
+        port = ConfigLoader.getPort();
+    }
+
+    @Pact(consumer = "ExampleFrontend")
+    public RequestResponsePact createPactSuccess(PactDslWithProvider builder) {
         Map<String, String> headers = new HashMap<>();
         headers.put("Content-Type", "application/json");
 
         return builder
-                .given("User with ID 1 exists")
-                .uponReceiving("A request for user 1")
-                    .path("/users/1")
-                    .method("GET")
+                .given("service is up and running")
+                .uponReceiving("A GET request to /example")
+                .path("/example")
+                .method("GET")
                 .willRespondWith()
-                    .status(200)
-                    .headers(headers)
-                    .body("{\\"id\\": 1, \\"name\\": \\"Alice\\", \\"email\\": \\"alice@example.com\\"}")
+                .status(200)
+                .headers(headers)
+                .body("{\"message\": \"success\"}")
                 .toPact();
     }
 
     @Test
-    void testGetUser(MockServer mockServer) throws IOException {
+    @PactTestFor(pactMethod = "createPactSuccess")
+    void testSuccess(MockServer mockServer) throws IOException {
         org.springframework.web.client.RestTemplate restTemplate = new org.springframework.web.client.RestTemplate();
-        org.springframework.http.ResponseEntity<String> response = restTemplate.getForEntity(mockServer.getUrl() + "/users/1", String.class);
+        org.springframework.http.ResponseEntity<String> response = restTemplate.getForEntity(mockServer.getUrl() + "/example", String.class);
         assertEquals(200, response.getStatusCode().value());
+    }
+
+    @Pact(consumer = "ExampleFrontend")
+    public RequestResponsePact createPactBadRequest(PactDslWithProvider builder) {
+        Map<String, String> headers = new HashMap<>();
+        headers.put("Content-Type", "application/json");
+
+        return builder
+                .given("service is up and running")
+                .uponReceiving("A GET request to /example/bad-request")
+                .path("/example/bad-request")
+                .method("GET")
+                .willRespondWith()
+                .status(400)
+                .headers(headers)
+                .body("{\"error\": \"Bad Request\"}")
+                .toPact();
+    }
+
+    @Test
+    @PactTestFor(pactMethod = "createPactBadRequest")
+    void testBadRequest(MockServer mockServer) throws IOException {
+        org.springframework.web.client.RestTemplate restTemplate = new org.springframework.web.client.RestTemplate();
+        try {
+            restTemplate.getForEntity(mockServer.getUrl() + "/example/bad-request", String.class);
+            fail("Expected HttpClientErrorException but request succeeded");
+        } catch (org.springframework.web.client.HttpClientErrorException ex) {
+            assertEquals(400, ex.getStatusCode().value());
+        }
     }
 }
 """
-
 def generate_java_filename(path):
     # Convert /data/{id} -> DataIdPactTest
     clean = re.sub(r'[^a-zA-Z0-9]', ' ', path)
@@ -63,20 +115,19 @@ You are a senior Java test automation engineer specializing in Pact JVM.
 Generate a COMPLETE, COMPILABLE Java file.
 
 ========================
-STRICT RULES
+STRICT OUTPUT RULES
 ========================
-- OUTPUT ONLY JAVA CODE
-- NO markdown, NO explanation
-- Class name MUST be {class_name}
-- ONLY ONE public class
-- ABSOLUTELY NO @Nested CLASSES OR INNER CLASSES
-- FATAL ERROR IF YOU USE @Nested
-- ALL @Test and @Pact methods MUST be flat and placed directly inside the main class
+- OUTPUT ONLY JAVA CODE — no markdown, no explanation, no comments outside code
+- ONLY ONE public class named exactly: {class_name}
+- NO nested or inner classes
+- ALL methods must be flat inside the class
 
 ========================
-MANDATORY IMPORTS (DO NOT MODIFY)
+FIXED IMPORTS (COPY EXACTLY)
 ========================
-You MUST include EXACTLY these imports:
+Use EXACTLY these imports, no additions, no removals:
+
+package consume.api.consumer;
 
 import au.com.dius.pact.consumer.MockServer;
 import au.com.dius.pact.consumer.dsl.PactDslWithProvider;
@@ -84,6 +135,7 @@ import au.com.dius.pact.consumer.junit5.PactConsumerTestExt;
 import au.com.dius.pact.consumer.junit5.PactTestFor;
 import au.com.dius.pact.core.model.RequestResponsePact;
 import au.com.dius.pact.core.model.annotations.Pact;
+import au.com.dius.pact.core.model.PactSpecVersion;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.BeforeAll;
@@ -94,94 +146,159 @@ import java.util.HashMap;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-
-DO NOT REMOVE OR CHANGE THESE IMPORTS.
-
-========================
-FRAMEWORK RULES
-========================
-- JUnit 5 ONLY
-- Use @ExtendWith(PactConsumerTestExt.class)
-- Use @PactTestFor(providerName="api-service", port="8081")
+import static org.junit.jupiter.api.Assertions.fail;
 
 ========================
-CONFIG RULES
+CLASS-LEVEL ANNOTATIONS (CRITICAL — DO NOT MOVE)
 ========================
-Use ConfigLoader:
+These TWO annotations MUST appear DIRECTLY above the class declaration.
+NEVER place them on any method. NEVER place them inside the class body.
 
-static String baseUrl;
-static String providerName;
-static String consumerName;
-static String port;
+CORRECT (copy exactly):
 
-@BeforeAll
-static void setup() {{
-    baseUrl = ConfigLoader.getBaseUrl();
-    providerName = ConfigLoader.getProviderName();
-    consumerName = ConfigLoader.getConsumerName();
-    port = ConfigLoader.getPort();
-}}
+@ExtendWith(PactConsumerTestExt.class)
+@PactTestFor(providerName = "api-service", port = "8081", pactVersion = PactSpecVersion.V3)
+public class {class_name} {{
 
-========================
-PACT RULES
-========================
-For EACH endpoint generate:
+WRONG — will cause test failures:
 
-1. success (200)
-2. bad request (400)
-3. not found (404)
-4. unauthorized (401)
-5. server error (500)
+public class {class_name} {{
+    @ExtendWith(...)       // ← NEVER on a method
+    @BeforeAll
+    static void setup()    // ← NEVER put @ExtendWith here
 
-Each MUST have:
-- ONE @Pact method returning RequestResponsePact
-- ONE @Test method
-
-Each @Test MUST include:
-@PactTestFor(pactMethod="EXACT_METHOD_NAME")
+REASON: @ExtendWith(PactConsumerTestExt.class) registers the MockServer 
+parameter resolver. If it is not on the CLASS, every @Test method will fail 
+with: "No ParameterResolver registered for parameter MockServer".
 
 ========================
-CRITICAL TYPE RULE
+BEFOREALL RULE (CRITICAL)
 ========================
-ALL pact methods MUST return:
+@BeforeAll MUST have NO other annotations — only @BeforeAll.
 
-RequestResponsePact
+CORRECT:
+    @BeforeAll
+    static void setup() {{
+        baseUrl = ConfigLoader.getBaseUrl();
+        ...
+    }}
 
-Use EXACT type:
-au.com.dius.pact.core.model.RequestResponsePact
-
-DO NOT use any other type.
-
-========================
-NAMING RULE
-========================
-createPact_<scenario>
-test_<scenario>
-
-========================
-DATA RULES
-========================
-int → 1
-string → "Alice"
-boolean → true
+WRONG:
+    @ExtendWith(PactConsumerTestExt.class)   // ← NEVER here
+    @BeforeAll
+    static void setup() {{
 
 ========================
-HTTP CLIENT RULE
+CONFIG RULE
 ========================
-- DO NOT invent or assume any custom client classes (e.g. HelloClient, UserServiceClient)
-- YOU MUST use standard `org.springframework.web.client.RestTemplate` or `java.net.http.HttpClient` directly in the @Test method to make the HTTP request to the MockServer URL.
+Declare these four fields at the top of the class and populate via ConfigLoader ONLY:
+
+    static String baseUrl;
+    static String providerName;
+    static String consumerName;
+    static String port;
+
+    @BeforeAll
+    static void setup() {{
+        baseUrl = ConfigLoader.getBaseUrl();
+        providerName = ConfigLoader.getProviderName();
+        consumerName = ConfigLoader.getConsumerName();
+        port = ConfigLoader.getPort();
+    }}
+
+DO NOT hardcode "localhost", "8081", "Producer", or "Consumer" anywhere.
+DO NOT use ConfigLoader for request/response bodies.
 
 ========================
-IMPORTANT
+PACT METHOD RULE
 ========================
-- FATAL ERROR IF YOU USE @Nested CLASSES
-- NO multiple classes
-- MUST COMPILE
-- DO NOT omit imports
-- DO NOT use wildcard imports
+Every @Pact method MUST:
+- Return: RequestResponsePact  (NOT V4Pact, NOT PactBuilder)
+- Accept: PactDslWithProvider builder
+- Be annotated: @Pact(consumer = "ConsumerName")
 
 ========================
-REFERENCE STRUCTURE
+SCENARIO RULE
+========================
+Generate exactly FIVE scenario pairs (one @Pact + one @Test each):
+
+| @Pact method name       | @Test method name       | Status |
+|-------------------------|-------------------------|--------|
+| createPactSuccess       | testSuccess             | 200    |
+| createPactBadRequest    | testBadRequest          | 400    |
+| createPactNotFound      | testNotFound            | 404    |
+| createPactUnauthorized  | testUnauthorized        | 401    |
+| createPactServerError   | testServerError         | 500    |
+
+========================
+TEST ANNOTATION RULE (CRITICAL)
+========================
+EVERY @Test method MUST have BOTH annotations, in this order:
+
+    @Test
+    @PactTestFor(pactMethod = "createPactSuccess")
+    void testSuccess(MockServer mockServer) throws IOException {{
+
+NO @Test method is allowed without @PactTestFor(pactMethod = "...").
+
+========================
+ERROR CLASSIFICATION RULE (CRITICAL)
+========================
+4xx errors → catch HttpClientErrorException
+5xx errors → catch HttpServerErrorException
+
+CORRECT:
+    // 404 test
+    }} catch (org.springframework.web.client.HttpClientErrorException ex) {{
+        assertEquals(404, ex.getStatusCode().value());
+    }}
+
+WRONG:
+    // 404 test — 404 is a CLIENT error, NOT a server error
+    }} catch (org.springframework.web.client.HttpServerErrorException ex) {{
+
+Status → correct exception class:
+- 400 → HttpClientErrorException
+- 401 → HttpClientErrorException
+- 404 → HttpClientErrorException
+- 500 → HttpServerErrorException
+
+========================
+TEST IMPLEMENTATION RULE
+========================
+SUCCESS (200/201):
+    ResponseEntity<String> response = restTemplate.getForEntity(
+        mockServer.getUrl() + "/path", String.class);
+    assertEquals(200, response.getStatusCode().value());
+
+ERROR (4xx/5xx):
+    try {{
+        restTemplate.getForEntity(mockServer.getUrl() + "/path", String.class);
+        fail("Expected exception but request succeeded");
+    }} catch (org.springframework.web.client.HttpClientErrorException ex) {{
+        assertEquals(400, ex.getStatusCode().value());
+    }}
+
+========================
+SELF-CHECK BEFORE OUTPUT
+========================
+Before writing the final output, verify each item:
+
+[ ] @ExtendWith(PactConsumerTestExt.class) is on the CLASS, not on any method
+[ ] @PactTestFor(..., pactVersion = PactSpecVersion.V3) is on the CLASS
+[ ] @BeforeAll setup() has NO other annotations
+[ ] Every @Test has @PactTestFor(pactMethod = "...")
+[ ] 4xx errors use HttpClientErrorException (including 404)
+[ ] 5xx errors use HttpServerErrorException
+[ ] No hardcoded baseUrl, port, providerName, consumerName
+[ ] All bodies come from API contracts only
+[ ] Exactly 5 scenario pairs generated
+[ ] Package is: consume.api.consumer
+
+If ANY item is unchecked → fix it before outputting.
+
+========================
+REFERENCE TEMPLATE
 ========================
 {TEMPLATE}
 
@@ -189,8 +306,9 @@ REFERENCE STRUCTURE
 API CONTRACTS
 ========================
 {json.dumps(contracts, indent=2)}
-
 """
+
+
 
     try:
         response = ollama.chat(

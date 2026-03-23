@@ -3,6 +3,8 @@ import au.com.dius.pact.consumer.dsl.PactDslWithProvider;
 import au.com.dius.pact.consumer.junit5.PactConsumerTestExt;
 import au.com.dius.pact.consumer.junit5.PactTestFor;
 import au.com.dius.pact.core.model.RequestResponsePact;
+import au.com.dius.pact.core.model.annotations.Pact;
+
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -13,28 +15,30 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+@ExtendWith(PactConsumerTestExt.class)
+@PactTestFor(providerName = "api-service", port = "8081")
 public class DataIdPactTest {
 
-    public static String baseUrl;
-    public static String providerName;
-    public static String consumerName;
-    public static String port;
+    static String baseUrl;
+    static String providerName;
+    static String consumerName;
+    static String port;
 
     @BeforeAll
-    public static void setup() {
+    static void setup() {
         baseUrl = ConfigLoader.getBaseUrl();
         providerName = ConfigLoader.getProviderName();
         consumerName = ConfigLoader.getConsumerName();
         port = ConfigLoader.getPort();
     }
 
-    @Pact(consumer = "DataConsumer")
-    public RequestResponsePact createPactSuccess(PactDslWithProvider builder) {
+    @Pact(consumer = "DataFrontend")
+    public RequestResponsePact createPact_success(PactDslWithProvider builder) {
         Map<String, String> headers = new HashMap<>();
         headers.put("Content-Type", "application/json");
 
         return builder
-                .given("Data exists with ID 1")
+                .given("Data with ID 1 exists")
                 .uponReceiving("A request for data 1")
                     .path("/data/1")
                     .method("GET")
@@ -46,69 +50,69 @@ public class DataIdPactTest {
     }
 
     @Test
-    void testGetSuccess(MockServer mockServer) throws IOException {
+    void testGetData_success(MockServer mockServer) throws IOException {
         org.springframework.web.client.RestTemplate restTemplate = new org.springframework.web.client.RestTemplate();
         org.springframework.http.ResponseEntity<String> response = restTemplate.getForEntity(mockServer.getUrl() + "/data/1", String.class);
         assertEquals(200, response.getStatusCode().value());
     }
 
-    @Pact(consumer = "DataConsumer")
-    public RequestResponsePact createPactBadRequest(PactDslWithProvider builder) {
+    @Pact(consumer = "DataFrontend")
+    public RequestResponsePact createPact_badRequest(PactDslWithProvider builder) {
         Map<String, String> headers = new HashMap<>();
         headers.put("Content-Type", "application/json");
 
         return builder
-                .given("No data exists with ID 1")
-                .uponReceiving("A request for data 1")
-                    .path("/data/1")
+                .given("Invalid data")
+                .uponReceiving("A request for invalid data")
+                    .path("/data/invalid")
                     .method("GET")
                 .willRespondWith()
                     .status(400)
                     .headers(headers)
-                    .body("{\"error\": \"Bad Request\"}")
+                    .body("{\"error\": \"Invalid data\"}")
                 .toPact();
     }
 
     @Test
-    void testGetBadRequest(MockServer mockServer) throws IOException {
+    void testGetData_badRequest(MockServer mockServer) throws IOException {
         org.springframework.web.client.RestTemplate restTemplate = new org.springframework.web.client.RestTemplate();
-        org.springframework.http.ResponseEntity<String> response = restTemplate.getForEntity(mockServer.getUrl() + "/data/1", String.class);
+        org.springframework.http.ResponseEntity<String> response = restTemplate.getForEntity(mockServer.getUrl() + "/data/invalid", String.class);
         assertEquals(400, response.getStatusCode().value());
     }
 
-    @Pact(consumer = "DataConsumer")
-    public RequestResponsePact createPactNotFound(PactDslWithProvider builder) {
+    @Pact(consumer = "DataFrontend")
+    public RequestResponsePact createPact_notFound(PactDslWithProvider builder) {
         Map<String, String> headers = new HashMap<>();
         headers.put("Content-Type", "application/json");
 
         return builder
-                .given("No data exists with ID 2")
-                .uponReceiving("A request for data 2")
+                .given("No data with ID 2 exists")
+                .uponReceiving("A request for non-existent data")
                     .path("/data/2")
                     .method("GET")
                 .willRespondWith()
                     .status(404)
                     .headers(headers)
-                    .body("{\"error\": \"Not Found\"}")
+                    .body("{\"error\": \"Data not found\"}")
                 .toPact();
     }
 
     @Test
-    void testGetNotFound(MockServer mockServer) throws IOException {
+    void testGetData_notFound(MockServer mockServer) throws IOException {
         org.springframework.web.client.RestTemplate restTemplate = new org.springframework.web.client.RestTemplate();
         org.springframework.http.ResponseEntity<String> response = restTemplate.getForEntity(mockServer.getUrl() + "/data/2", String.class);
         assertEquals(404, response.getStatusCode().value());
     }
 
-    @Pact(consumer = "DataConsumer")
-    public RequestResponsePact createPactUnauthorized(PactDslWithProvider builder) {
+    @Pact(consumer = "DataFrontend")
+    public RequestResponsePact createPact_unauthorized(PactDslWithProvider builder) {
         Map<String, String> headers = new HashMap<>();
         headers.put("Content-Type", "application/json");
 
         return builder
-                .given("No authentication exists for data 3")
-                .uponReceiving("A request for data 3")
-                    .path("/data/3")
+                .given("Invalid credentials")
+                .uponReceiving("A request with invalid credentials")
+                    .path("/data/1")
                     .method("GET")
                 .willRespondWith()
                     .status(401)
@@ -118,21 +122,21 @@ public class DataIdPactTest {
     }
 
     @Test
-    void testGetUnauthorized(MockServer mockServer) throws IOException {
+    void testGetData_unauthorized(MockServer mockServer) throws IOException {
         org.springframework.web.client.RestTemplate restTemplate = new org.springframework.web.client.RestTemplate();
-        org.springframework.http.ResponseEntity<String> response = restTemplate.getForEntity(mockServer.getUrl() + "/data/3", String.class);
+        org.springframework.http.ResponseEntity<String> response = restTemplate.getForEntity(mockServer.getUrl() + "/data/1", String.class);
         assertEquals(401, response.getStatusCode().value());
     }
 
-    @Pact(consumer = "DataConsumer")
-    public RequestResponsePact createPactServerError(PactDslWithProvider builder) {
+    @Pact(consumer = "DataFrontend")
+    public RequestResponsePact createPact_serverError(PactDslWithProvider builder) {
         Map<String, String> headers = new HashMap<>();
         headers.put("Content-Type", "application/json");
 
         return builder
-                .given("Error occurred while retrieving data 4")
-                .uponReceiving("A request for data 4")
-                    .path("/data/4")
+                .given("Server error")
+                .uponReceiving("A request that causes server error")
+                    .path("/data/1")
                     .method("GET")
                 .willRespondWith()
                     .status(500)
@@ -142,9 +146,9 @@ public class DataIdPactTest {
     }
 
     @Test
-    void testGetServerError(MockServer mockServer) throws IOException {
+    void testGetData_serverError(MockServer mockServer) throws IOException {
         org.springframework.web.client.RestTemplate restTemplate = new org.springframework.web.client.RestTemplate();
-        org.springframework.http.ResponseEntity<String> response = restTemplate.getForEntity(mockServer.getUrl() + "/data/4", String.class);
+        org.springframework.http.ResponseEntity<String> response = restTemplate.getForEntity(mockServer.getUrl() + "/data/1", String.class);
         assertEquals(500, response.getStatusCode().value());
     }
 }

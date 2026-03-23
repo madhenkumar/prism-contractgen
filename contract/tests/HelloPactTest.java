@@ -15,8 +15,6 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-@ExtendWith(PactConsumerTestExt.class)
-@PactTestFor(providerName = "api-service", port = "8081")
 public class HelloPactTest {
 
     static String baseUrl;
@@ -32,40 +30,41 @@ public class HelloPactTest {
         port = ConfigLoader.getPort();
     }
 
-    @Pact(consumer = "HelloFrontend")
-    public RequestResponsePact createPactSuccess(PactDslWithProvider builder) {
+    @Pact(consumer = "HelloService")
+    public RequestResponsePact createPactGetSuccess(PactDslWithProvider builder) {
         Map<String, String> headers = new HashMap<>();
         headers.put("Content-Type", "application/json");
 
         return builder
-                .given("API service is up and running")
-                .uponReceiving("A GET request to /hello")
+                .given("Hello Service exists")
+                .uponReceiving("A request to get hello message")
                     .path("/hello")
                     .method("GET")
                 .willRespondWith()
                     .status(200)
                     .headers(headers)
-                    .body("{\"service\": \"api-service\", \"message\": \"Hello from Pact\"}")
+                    .body("{\"service\": \"api-service\", \"message\": \"Hello, World!\"}")
                 .toPact();
     }
 
     @Test
-    void testGetSuccess(MockServer mockServer) throws IOException {
+    void testGetHelloSuccess(MockServer mockServer) throws IOException {
         org.springframework.web.client.RestTemplate restTemplate = new org.springframework.web.client.RestTemplate();
         org.springframework.http.ResponseEntity<String> response = restTemplate.getForEntity(mockServer.getUrl() + "/hello", String.class);
         assertEquals(200, response.getStatusCode().value());
     }
 
-    @Pact(consumer = "HelloFrontend")
-    public RequestResponsePact createPactBadRequest(PactDslWithProvider builder) {
+    @Pact(consumer = "HelloService")
+    public RequestResponsePact createPactGetBadRequest(PactDslWithProvider builder) {
         Map<String, String> headers = new HashMap<>();
         headers.put("Content-Type", "application/json");
 
         return builder
-                .given("API service is up and running")
-                .uponReceiving("A GET request to /hello with bad request")
-                    .path("/hello/bad-request")
-                    .method("GET")
+                .given("Hello Service exists")
+                .uponReceiving("A request to get hello message with bad request")
+                    .path("/hello")
+                    .method("POST")
+                    .body("{\"service\": \"api-service\", \"message\": \"Hello, World!\"}")
                 .willRespondWith()
                     .status(400)
                     .headers(headers)
@@ -74,21 +73,20 @@ public class HelloPactTest {
     }
 
     @Test
-    @PactTestFor(pactMethod = "createPactBadRequest")
-    void testGetBadRequest(MockServer mockServer) throws IOException {
+    void testGetHelloBadRequest(MockServer mockServer) throws IOException {
         org.springframework.web.client.RestTemplate restTemplate = new org.springframework.web.client.RestTemplate();
-        org.springframework.http.ResponseEntity<String> response = restTemplate.getForEntity(mockServer.getUrl() + "/hello/bad-request", String.class);
+        org.springframework.http.ResponseEntity<String> response = restTemplate.postForEntity(mockServer.getUrl() + "/hello", "{\"service\": \"api-service\", \"message\": \"Hello, World!\"}", String.class);
         assertEquals(400, response.getStatusCode().value());
     }
 
-    @Pact(consumer = "HelloFrontend")
-    public RequestResponsePact createPactNotFound(PactDslWithProvider builder) {
+    @Pact(consumer = "HelloService")
+    public RequestResponsePact createPactGetNotFound(PactDslWithProvider builder) {
         Map<String, String> headers = new HashMap<>();
         headers.put("Content-Type", "application/json");
 
         return builder
-                .given("API service is up and running")
-                .uponReceiving("A GET request to /hello/not-found")
+                .given("Hello Service exists")
+                .uponReceiving("A request to get hello message not found")
                     .path("/hello/not-found")
                     .method("GET")
                 .willRespondWith()
@@ -99,23 +97,23 @@ public class HelloPactTest {
     }
 
     @Test
-    @PactTestFor(pactMethod = "createPactNotFound")
-    void testGetNotFound(MockServer mockServer) throws IOException {
+    void testGetHelloNotFound(MockServer mockServer) throws IOException {
         org.springframework.web.client.RestTemplate restTemplate = new org.springframework.web.client.RestTemplate();
         org.springframework.http.ResponseEntity<String> response = restTemplate.getForEntity(mockServer.getUrl() + "/hello/not-found", String.class);
         assertEquals(404, response.getStatusCode().value());
     }
 
-    @Pact(consumer = "HelloFrontend")
-    public RequestResponsePact createPactUnauthorized(PactDslWithProvider builder) {
+    @Pact(consumer = "HelloService")
+    public RequestResponsePact createPactGetUnauthorized(PactDslWithProvider builder) {
         Map<String, String> headers = new HashMap<>();
         headers.put("Content-Type", "application/json");
 
         return builder
-                .given("API service is up and running")
-                .uponReceiving("A GET request to /hello/unauthorized")
-                    .path("/hello/unauthorized")
+                .given("Hello Service exists")
+                .uponReceiving("A request to get hello message unauthorized")
+                    .path("/hello")
                     .method("GET")
+                    .headers(headers)
                 .willRespondWith()
                     .status(401)
                     .headers(headers)
@@ -124,35 +122,33 @@ public class HelloPactTest {
     }
 
     @Test
-    @PactTestFor(pactMethod = "createPactUnauthorized")
-    void testGetUnauthorized(MockServer mockServer) throws IOException {
+    void testGetHelloUnauthorized(MockServer mockServer) throws IOException {
         org.springframework.web.client.RestTemplate restTemplate = new org.springframework.web.client.RestTemplate();
-        org.springframework.http.ResponseEntity<String> response = restTemplate.getForEntity(mockServer.getUrl() + "/hello/unauthorized", String.class);
+        org.springframework.http.ResponseEntity<String> response = restTemplate.getForEntity(mockServer.getUrl() + "/hello", String.class);
         assertEquals(401, response.getStatusCode().value());
     }
 
-    @Pact(consumer = "HelloFrontend")
-    public RequestResponsePact createPactServerError(PactDslWithProvider builder) {
+    @Pact(consumer = "HelloService")
+    public RequestResponsePact createPactGetServerError(PactDslWithProvider builder) {
         Map<String, String> headers = new HashMap<>();
         headers.put("Content-Type", "application/json");
 
         return builder
-                .given("API service is up and running")
-                .uponReceiving("A GET request to /hello/server-error")
-                    .path("/hello/server-error")
+                .given("Hello Service exists")
+                .uponReceiving("A request to get hello message server error")
+                    .path("/hello")
                     .method("GET")
                 .willRespondWith()
                     .status(500)
                     .headers(headers)
-                    .body("{\"error\": \"Internal Server Error\"}")
+                    .body("{\"error\": \"Server Error\"}")
                 .toPact();
     }
 
     @Test
-    @PactTestFor(pactMethod = "createPactServerError")
-    void testGetServerError(MockServer mockServer) throws IOException {
+    void testGetHelloServerError(MockServer mockServer) throws IOException {
         org.springframework.web.client.RestTemplate restTemplate = new org.springframework.web.client.RestTemplate();
-        org.springframework.http.ResponseEntity<String> response = restTemplate.getForEntity(mockServer.getUrl() + "/hello/server-error", String.class);
+        org.springframework.http.ResponseEntity<String> response = restTemplate.getForEntity(mockServer.getUrl() + "/hello", String.class);
         assertEquals(500, response.getStatusCode().value());
     }
 }
