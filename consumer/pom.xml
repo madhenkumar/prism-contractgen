@@ -85,7 +85,7 @@
 				<artifactId>maven</artifactId>
 				<version>4.6.10</version>
 				<configuration>
-					<pactBrokerUrl>http://localhost:80</pactBrokerUrl>
+					<pactBrokerUrl>http://localhost:9292</pactBrokerUrl>
 					<projectVersion>${project.version}</projectVersion>
 				</configuration>
 			</plugin>
