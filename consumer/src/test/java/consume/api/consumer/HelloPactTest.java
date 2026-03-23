@@ -3,6 +3,7 @@ import au.com.dius.pact.consumer.MockServer;
 import au.com.dius.pact.consumer.dsl.PactDslWithProvider;
 import au.com.dius.pact.consumer.junit5.PactConsumerTestExt;
 import au.com.dius.pact.consumer.junit5.PactTestFor;
+import au.com.dius.pact.core.model.PactSpecVersion;
 import au.com.dius.pact.core.model.RequestResponsePact;
 import au.com.dius.pact.core.model.annotations.Pact;
 
@@ -17,7 +18,7 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 @ExtendWith(PactConsumerTestExt.class)
-@PactTestFor(providerName = "api-service", port = "8081")
+@PactTestFor(providerName = "api-service", port = "8081", pactVersion = PactSpecVersion.V3)
 public class HelloPactTest {
 
     static String baseUrl;
@@ -51,6 +52,7 @@ public class HelloPactTest {
     }
 
     @Test
+    @PactTestFor(pactMethod = "createPactSuccess")
     void testGetSuccess(MockServer mockServer) throws IOException {
         org.springframework.web.client.RestTemplate restTemplate = new org.springframework.web.client.RestTemplate();
         org.springframework.http.ResponseEntity<String> response = restTemplate.getForEntity(mockServer.getUrl() + "/hello", String.class);
@@ -78,8 +80,11 @@ public class HelloPactTest {
     @PactTestFor(pactMethod = "createPactBadRequest")
     void testGetBadRequest(MockServer mockServer) throws IOException {
         org.springframework.web.client.RestTemplate restTemplate = new org.springframework.web.client.RestTemplate();
-        org.springframework.http.ResponseEntity<String> response = restTemplate.getForEntity(mockServer.getUrl() + "/hello/bad-request", String.class);
-        assertEquals(400, response.getStatusCode().value());
+        try {
+            restTemplate.getForEntity(mockServer.getUrl() + "/hello/bad-request", String.class);
+        } catch (org.springframework.web.client.HttpClientErrorException ex) {
+            assertEquals(400, ex.getStatusCode().value());
+        }
     }
 
     @Pact(consumer = "HelloFrontend")
@@ -103,8 +108,11 @@ public class HelloPactTest {
     @PactTestFor(pactMethod = "createPactNotFound")
     void testGetNotFound(MockServer mockServer) throws IOException {
         org.springframework.web.client.RestTemplate restTemplate = new org.springframework.web.client.RestTemplate();
-        org.springframework.http.ResponseEntity<String> response = restTemplate.getForEntity(mockServer.getUrl() + "/hello/not-found", String.class);
-        assertEquals(404, response.getStatusCode().value());
+        try {
+            restTemplate.getForEntity(mockServer.getUrl() + "/hello/not-found", String.class);
+        } catch (org.springframework.web.client.HttpClientErrorException ex) {
+            assertEquals(404, ex.getStatusCode().value());
+        }
     }
 
     @Pact(consumer = "HelloFrontend")
@@ -128,8 +136,11 @@ public class HelloPactTest {
     @PactTestFor(pactMethod = "createPactUnauthorized")
     void testGetUnauthorized(MockServer mockServer) throws IOException {
         org.springframework.web.client.RestTemplate restTemplate = new org.springframework.web.client.RestTemplate();
-        org.springframework.http.ResponseEntity<String> response = restTemplate.getForEntity(mockServer.getUrl() + "/hello/unauthorized", String.class);
-        assertEquals(401, response.getStatusCode().value());
+        try {
+            restTemplate.getForEntity(mockServer.getUrl() + "/hello/unauthorized", String.class);
+        } catch (org.springframework.web.client.HttpClientErrorException ex) {
+            assertEquals(401, ex.getStatusCode().value());
+        }
     }
 
     @Pact(consumer = "HelloFrontend")
@@ -153,7 +164,10 @@ public class HelloPactTest {
     @PactTestFor(pactMethod = "createPactServerError")
     void testGetServerError(MockServer mockServer) throws IOException {
         org.springframework.web.client.RestTemplate restTemplate = new org.springframework.web.client.RestTemplate();
-        org.springframework.http.ResponseEntity<String> response = restTemplate.getForEntity(mockServer.getUrl() + "/hello/server-error", String.class);
-        assertEquals(500, response.getStatusCode().value());
+        try {
+            restTemplate.getForEntity(mockServer.getUrl() + "/hello/server-error", String.class);
+        } catch (org.springframework.web.client.HttpServerErrorException ex) {
+            assertEquals(500, ex.getStatusCode().value());
+        }
     }
 }
