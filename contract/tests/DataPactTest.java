@@ -1,9 +1,12 @@
+package consume.api.consumer;
+
 import au.com.dius.pact.consumer.MockServer;
 import au.com.dius.pact.consumer.dsl.PactDslWithProvider;
 import au.com.dius.pact.consumer.junit5.PactConsumerTestExt;
 import au.com.dius.pact.consumer.junit5.PactTestFor;
 import au.com.dius.pact.core.model.RequestResponsePact;
 import au.com.dius.pact.core.model.annotations.Pact;
+import au.com.dius.pact.core.model.PactSpecVersion;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.BeforeAll;
@@ -14,9 +17,10 @@ import java.util.HashMap;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.fail;
 
 @ExtendWith(PactConsumerTestExt.class)
-@PactTestFor(providerName = "api-service", port = "8081")
+@PactTestFor(providerName = "api-service", port = "8081", pactVersion = PactSpecVersion.V3)
 public class DataPactTest {
 
     static String baseUrl;
@@ -32,123 +36,144 @@ public class DataPactTest {
         port = ConfigLoader.getPort();
     }
 
-    @Pact(consumer = "DataService")
-    public RequestResponsePact createPact_success(PactDslWithProvider builder) {
+    @Pact(consumer = "DataConsumer")
+    public RequestResponsePact createPactSuccess(PactDslWithProvider builder) {
         Map<String, String> headers = new HashMap<>();
         headers.put("Content-Type", "application/json");
 
         return builder
-                .given("data exists")
-                .uponReceiving("A request for data")
-                    .path("/data")
-                    .method("POST")
+                .given("service is up and running")
+                .uponReceiving("A GET request to /data")
+                .path("/data")
+                .method("GET")
                 .willRespondWith()
-                    .status(201)
-                    .headers(headers)
-                    .body("{\"service\": \"api-service\", \"message\": \"Data created successfully\", \"data\": {\"id\": 1, \"item\": \"Item 1\", \"quantity\": 10}}")
+                .status(200)
+                .headers(headers)
+                .body("{\"message\": \"success\"}")
                 .toPact();
     }
 
     @Test
-    void testPostData(MockServer mockServer) throws IOException {
+    @PactTestFor(pactMethod = "createPactSuccess")
+    void testSuccess(MockServer mockServer) throws IOException {
         org.springframework.web.client.RestTemplate restTemplate = new org.springframework.web.client.RestTemplate();
-        org.springframework.http.ResponseEntity<String> response = restTemplate.postForEntity(mockServer.getUrl() + "/data", "{\"service\": \"api-service\", \"message\": \"Data created successfully\", \"data\": {\"id\": 1, \"item\": \"Item 1\", \"quantity\": 10}}", String.class);
-        assertEquals(201, response.getStatusCode().value());
+        org.springframework.http.ResponseEntity<String> response = restTemplate.getForEntity(mockServer.getUrl() + "/data", String.class);
+        assertEquals(200, response.getStatusCode().value());
     }
 
-    @Pact(consumer = "DataService")
-    public RequestResponsePact createPact_badRequest(PactDslWithProvider builder) {
+    @Pact(consumer = "DataConsumer")
+    public RequestResponsePact createPactBadRequest(PactDslWithProvider builder) {
         Map<String, String> headers = new HashMap<>();
         headers.put("Content-Type", "application/json");
 
         return builder
-                .given("data does not exist")
-                .uponReceiving("A request for data")
-                    .path("/data")
-                    .method("POST")
+                .given("service is up and running")
+                .uponReceiving("A GET request to /data/bad-request")
+                .path("/data/bad-request")
+                .method("GET")
                 .willRespondWith()
-                    .status(400)
-                    .headers(headers)
-                    .body("{\"service\": \"api-service\", \"message\": \"Bad Request\"}")
+                .status(400)
+                .headers(headers)
+                .body("{\"error\": \"Bad Request\"}")
                 .toPact();
     }
 
     @Test
-    void testPostData_badRequest(MockServer mockServer) throws IOException {
+    @PactTestFor(pactMethod = "createPactBadRequest")
+    void testBadRequest(MockServer mockServer) throws IOException {
         org.springframework.web.client.RestTemplate restTemplate = new org.springframework.web.client.RestTemplate();
-        org.springframework.http.ResponseEntity<String> response = restTemplate.postForEntity(mockServer.getUrl() + "/data", "{\"service\": \"api-service\", \"message\": \"Bad Request\"}", String.class);
-        assertEquals(400, response.getStatusCode().value());
+        try {
+            restTemplate.getForEntity(mockServer.getUrl() + "/data/bad-request", String.class);
+            fail("Expected HttpClientErrorException but request succeeded");
+        } catch (org.springframework.web.client.HttpClientErrorException ex) {
+            assertEquals(400, ex.getStatusCode().value());
+        }
     }
 
-    @Pact(consumer = "DataService")
-    public RequestResponsePact createPact_notFound(PactDslWithProvider builder) {
+    @Pact(consumer = "DataConsumer")
+    public RequestResponsePact createPact401(PactDslWithProvider builder) {
         Map<String, String> headers = new HashMap<>();
         headers.put("Content-Type", "application/json");
 
         return builder
-                .given("data does not exist")
-                .uponReceiving("A request for data")
-                    .path("/data")
-                    .method("POST")
+                .given("service is up and running")
+                .uponReceiving("A GET request to /data/401")
+                .path("/data/401")
+                .method("GET")
                 .willRespondWith()
-                    .status(404)
-                    .headers(headers)
-                    .body("{\"service\": \"api-service\", \"message\": \"Not Found\"}")
+                .status(401)
+                .headers(headers)
+                .body("{\"error\": \"Unauthorized\"}")
                 .toPact();
     }
 
     @Test
-    void testPostData_notFound(MockServer mockServer) throws IOException {
+    @PactTestFor(pactMethod = "createPact401")
+    void test401(MockServer mockServer) throws IOException {
         org.springframework.web.client.RestTemplate restTemplate = new org.springframework.web.client.RestTemplate();
-        org.springframework.http.ResponseEntity<String> response = restTemplate.postForEntity(mockServer.getUrl() + "/data", "{\"service\": \"api-service\", \"message\": \"Not Found\"}", String.class);
-        assertEquals(404, response.getStatusCode().value());
+        try {
+            restTemplate.getForEntity(mockServer.getUrl() + "/data/401", String.class);
+            fail("Expected HttpClientErrorException but request succeeded");
+        } catch (org.springframework.web.client.HttpClientErrorException ex) {
+            assertEquals(401, ex.getStatusCode().value());
+        }
     }
 
-    @Pact(consumer = "DataService")
-    public RequestResponsePact createPact_unauthorized(PactDslWithProvider builder) {
+    @Pact(consumer = "DataConsumer")
+    public RequestResponsePact createPact404(PactDslWithProvider builder) {
         Map<String, String> headers = new HashMap<>();
         headers.put("Content-Type", "application/json");
 
         return builder
-                .given("data does not exist")
-                .uponReceiving("A request for data")
-                    .path("/data")
-                    .method("POST")
+                .given("service is up and running")
+                .uponReceiving("A GET request to /data/404")
+                .path("/data/404")
+                .method("GET")
                 .willRespondWith()
-                    .status(401)
-                    .headers(headers)
-                    .body("{\"service\": \"api-service\", \"message\": \"Unauthorized\"}")
+                .status(404)
+                .headers(headers)
+                .body("{\"error\": \"Not Found\"}")
                 .toPact();
     }
 
     @Test
-    void testPostData_unauthorized(MockServer mockServer) throws IOException {
+    @PactTestFor(pactMethod = "createPact404")
+    void test404(MockServer mockServer) throws IOException {
         org.springframework.web.client.RestTemplate restTemplate = new org.springframework.web.client.RestTemplate();
-        org.springframework.http.ResponseEntity<String> response = restTemplate.postForEntity(mockServer.getUrl() + "/data", "{\"service\": \"api-service\", \"message\": \"Unauthorized\"}", String.class);
-        assertEquals(401, response.getStatusCode().value());
+        try {
+            restTemplate.getForEntity(mockServer.getUrl() + "/data/404", String.class);
+            fail("Expected HttpClientErrorException but request succeeded");
+        } catch (org.springframework.web.client.HttpClientErrorException ex) {
+            assertEquals(404, ex.getStatusCode().value());
+        }
     }
 
-    @Pact(consumer = "DataService")
-    public RequestResponsePact createPact_serverError(PactDslWithProvider builder) {
+    @Pact(consumer = "DataConsumer")
+    public RequestResponsePact createPact500(PactDslWithProvider builder) {
         Map<String, String> headers = new HashMap<>();
         headers.put("Content-Type", "application/json");
 
         return builder
-                .given("data does not exist")
-                .uponReceiving("A request for data")
-                    .path("/data")
-                    .method("POST")
+                .given("service is up and running")
+                .uponReceiving("A GET request to /data/500")
+                .path("/data/500")
+                .method("GET")
                 .willRespondWith()
-                    .status(500)
-                    .headers(headers)
-                    .body("{\"service\": \"api-service\", \"message\": \"Internal Server Error\"}")
+                .status(500)
+                .headers(headers)
+                .body("{\"error\": \"Internal Server Error\"}")
                 .toPact();
     }
 
     @Test
-    void testPostData_serverError(MockServer mockServer) throws IOException {
+    @PactTestFor(pactMethod = "createPact500")
+    void test500(MockServer mockServer) throws IOException {
         org.springframework.web.client.RestTemplate restTemplate = new org.springframework.web.client.RestTemplate();
-        org.springframework.http.ResponseEntity<String> response = restTemplate.postForEntity(mockServer.getUrl() + "/data", "{\"service\": \"api-service\", \"message\": \"Internal Server Error\"}", String.class);
-        assertEquals(500, response.getStatusCode().value());
+        try {
+            restTemplate.getForEntity(mockServer.getUrl() + "/data/500", String.class);
+            fail("Expected HttpServerErrorException but request succeeded");
+        } catch (org.springframework.web.client.HttpServerErrorException ex) {
+            assertEquals(500, ex.getStatusCode().value());
+        }
     }
 }
