@@ -57,6 +57,66 @@ sequenceDiagram
 - **Ollama** running locally with the `incept5/llama3.1-claude` model.
 - **mitmproxy** installed via standard pip or binaries (`pip install mitmproxy`).
 
+### Setting up Ollama
+To generate the AI-based contracts, you must have Ollama installed and running with the required model:
+1. Download and install Ollama from [ollama.com](https://ollama.com/download)
+2. Open your terminal and pull the specific fine-tuned model used by the generators:
+   ```bash
+   ollama run incept5/llama3.1-claude
+   ```
+   *(This will download the model. You can exit the prompt once it finishes, as the Ollama background service will stay active on port `11434`)*
+   
+### Setting up Pact Broker (Docker)
+To publish contracts and dynamically verify Provider tests, you need a running instance of the Pact Broker. This process spins up a PostgreSQL db and the broker service on port 9292:
+
+1. Start the PostgreSQL Database container:
+   ```bash
+   docker run --name pactbroker-db -e POSTGRES_PASSWORD=ThePostgresPassword -e POSTGRES_USER=admin -e PGDATA=/var/lib/postgresql/data/pgdata -v /var/lib/postgresql/data:/var/lib/postgresql/data -d postgres
+   ```
+2. Enter the Database container:
+   ```bash
+   docker exec -it pactbroker-db psql -U admin
+   ```
+3. Run the following SQL commands to create the database and user:
+   ```sql
+   CREATE USER pactbrokeruser WITH PASSWORD 'TheUserPassword';
+   CREATE DATABASE pactbroker WITH OWNER pactbrokeruser;
+   GRANT ALL PRIVILEGES ON DATABASE pactbroker TO pactbrokeruser;
+   \q
+   ```
+4. Start the Pact Broker container:
+   ```bash
+   docker run --name pactbroker --link pactbroker-db:postgres -e PACT_BROKER_DATABASE_USERNAME=pactbrokeruser -e PACT_BROKER_DATABASE_PASSWORD=TheUserPassword -e PACT_BROKER_DATABASE_HOST=postgres -e PACT_BROKER_DATABASE_NAME=pactbroker -d -p 9292:9292 pactfoundation/pact-broker
+   ```
+   *(The Broker is now running at `http://localhost:9292`)*
+
+### 📦 Required Maven Configuration
+
+If you are setting this up in a fresh Java environment, ensure your `consumer/pom.xml` contains the following dependency and plugin for JUnit 5 Pact testing and broker publishing:
+
+**Pact Consumer Dependency:**
+```xml
+<dependency>
+    <groupId>au.com.dius.pact.consumer</groupId>
+    <artifactId>junit5</artifactId>
+    <version>4.6.15</version>
+    <scope>test</scope>
+</dependency>
+```
+
+**Pact Provider Plugin (for publishing to the Broker):**
+```xml
+<plugin>
+    <groupId>au.com.dius.pact.provider</groupId>
+    <artifactId>maven</artifactId>
+    <version>4.6.10</version>
+    <configuration>
+        <pactBrokerUrl>http://localhost:9292</pactBrokerUrl>
+        <projectVersion>${project.version}</projectVersion>
+    </configuration>
+</plugin>
+```
+
 ---
 
 ## 🚀 Setup & Execution Guide
@@ -104,34 +164,73 @@ curl -X POST http://localhost:8082/send-to-a -H "Content-Type: application/json"
 
 _Verify that `contract/logs.json` begins filling up with the intercepted JSON strings._
 
-### 4. Run the AI Contract Generators
+### 4. Generate Consumer Contract Tests
 
-Once sufficient API traffic exists, use the Python pipeline located in the `/contract` folder to build the tests:
+Once sufficient API traffic exists, you have two ways to generate your Java Pact Tests:
 
+#### Option A: One-Click FastAPI Server (Recommended)
+1. Start the generation server:
+   ```bash
+   cd contract
+   uvicorn main:app --reload
+   ```
+2. Make sure Ollama is running locally on port 11434.
+3. Send a POST request to generate and download the contracts:
+   ```bash
+   curl -X POST http://localhost:8000/consumer --output contracts_tests.zip
+   ```
+4. Unzip `contracts_tests.zip` and copy the Java files into your `consumer/src/test/java/...` classpath.
+
+#### Option B: Manual Python CLI
+Alternatively, run the pipeline scripts manually:
 ```bash
 cd contract
+# 1. Synthesize API schemas from logs.json -> openapi.json
+python openapi_generator.py
 
-# Step 1: Synthesize API schemas from logs.json -> generated_contracts.json
+# 2. Extract specific endpoints -> generated_contracts.json
 python llm_contract_generator.py
 
-# Step 2: Use Ollama to convert JSON contracts into valid JUnit 5 Pact JVM Java code
+# 3. Code-gen valid JUnit 5 Pact JVM Java code -> tests/
 python pact_generator.py
 ```
 
-This will deposit `.java` text artifacts inside `contract/tests/`. Copy these test classes into your `consumer/src/test/java/...` classpath.
+### 5. Generate Provider Contract Tests
 
-### 5. Validate the Pact Contracts!
+Prism can also generate Provider Verification tests dynamically from the Pact Broker, including auto-generating complete `@State` methods!
+1. Make sure your Pact Broker is running (e.g., `http://localhost:9292`). *Note: Set `PACT_BROKER_URL` environment variable if deployed in the cloud.*
+2. Run the Provider Generator script:
+   ```bash
+   cd contract
+   python provider_pact_generator.py --provider api-service --all
+   ```
+   *Available flags: `--provider <name>`, `--consumer <name>`, `--all`*
+3. The AI will output a fully configured Spring Boot Provider Test into `contract/tests_provider/`. Copy this into your Producer's test classpath.
 
-Finally, navigate back to your consumer architecture and run Maven to see your locally built Consumer-Driven Contract properly fail or succeed against Pact validations!
+### 6. Run & Publish the Consumer Tests
+
+Once you have copied the generated Java tests into your Consumer project (`consumer/src/test/java/...`), run them using Maven:
 
 ```bash
 cd consumer
 mvn clean test
 ```
 
-````
-Start the server using uvicorn main:app --reload from the contract directory.
-Ensure logs.json and a running local instance of Ollama on port 11434 are available.
-Send a POST request to http://localhost:8000/consumer (e.g. using curl or Postman).
-Verify that the server returns a valid .zip file containing .java Pact tests.```
-````
+If the tests pass successfully against your AI-generated mock scenarios, the Pact JVM framework will automatically generate the raw Pact JSON files inside `consumer/target/pacts`.
+
+To upload these freshly generated contracts to the Pact Broker so the Provider can verify them:
+```bash
+mvn pact:publish
+```
+*(You should now see the contracts appear in the UI at `http://localhost:9292`)*
+
+### 7. Run the Provider Verification Tests
+
+Once the contracts are published to the broker and you have generated the Spring Boot Provider tests using the AI (Step 5):
+
+```bash
+cd producer
+mvn clean test
+```
+
+The Provider tests will dynamically fetch the contracts from your Pact Broker, start up your running service on a random port, and verify that your real backend implementation adheres strictly to the pacts you just published!

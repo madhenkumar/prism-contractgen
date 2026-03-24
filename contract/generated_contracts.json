@@ -60,6 +60,7 @@
         "Content-Type": "application/json"
       },
       "body_schema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
         "type": "object",
         "properties": {
           "status": {
@@ -71,6 +72,7 @@
     "response": {
       "status": 200,
       "body_schema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
         "type": "object",
         "properties": {
           "service": {
@@ -99,7 +101,6 @@
         "Content-Type": "application/json"
       },
       "body_schema": {
-        "$schema": "http://json-schema.org/draft-07/schema#",
         "type": "object",
         "properties": {
           "item": {
@@ -114,7 +115,6 @@
     "response": {
       "status": 201,
       "body_schema": {
-        "$schema": "http://json-schema.org/draft-07/schema#",
         "type": "object",
         "properties": {
           "service": {
